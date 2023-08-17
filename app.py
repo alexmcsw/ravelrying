@@ -1,6 +1,7 @@
 import http.client
 import json
 import requests
+import csv
 import pandas as pd
 from config import *
 from classes import *
@@ -34,3 +35,9 @@ print(favorite_patterns)
 
 # stash = raveleryutils_api.get_stash(rav_username = 'amcsw')
 # print(stash)
+
+
+with open("favorites.csv", "w") as f:
+    writer = csv.writer(f)
+    writer.writerow(projects.members[0].__dict__.keys())
+    writer.writerows(projects.members)

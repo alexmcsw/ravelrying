@@ -36,6 +36,15 @@ class RavelryUtils:
         
         return pd.DataFrame.from_records(json.loads(r1.text)['patterns'])
     
+    def get_pattern_full(self, id = 0):
+        '''returns a specific pattern given the ID'''
+
+        url = 'https://api.ravelry.com/patterns/{}.json?'.format(id)  
+        r1 = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.authUsername, self.authPassword))
+        r1.close()
+        bad_keys = ['currency', 'currency_symbol', 'download_location', 'notes_html', 'notes', 'languages', 'packs', 'printings', 'photos']
+        #return Patterns(pd.DataFrame.from_records(json.loads(r1.text)['patterns']))
+        return {k:v for k,v in json.loads(r1.text)['pattern'].items() if k not in bad_keys}
 
     def get_queue(self, rav_username = 'rieslingm', query = '', page = 1, page_size = 100) -> pd.core.frame.DataFrame:
         '''This returns all the patterns in queue from a given person's rav_username'''
@@ -67,7 +76,9 @@ class RavelryUtils:
         url = 'https://api.ravelry.com/projects/{}/{}.json?'.format(rav_username, id)
         r1 = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.authUsername, self.authPassword))
         r1.close()
-        return Project(json.loads(r1.text)['project'])
+        project = json.loads(r1.text)['project']
+        project["pattern_full"] = self.get_pattern_full(project["pattern_id"])
+        return Project(project)
 
     def get_stash(self, rav_username = username, page = 1, page_size = 100):
         '''This returns a given person's stash'''
@@ -88,18 +99,33 @@ class Project:
     ''' Contains details about a given project'''
     def __init__(self, project_dict):
         for k,v in project_dict.items():
-            if k != "packs":
-                self.__setattr__(k,v)
-            else:
+            if k == "packs":
                 self.__setattr__(k,Packs(v[0]))
-                print(v[0])
+            # elif k == "pattern_full":
+            #     self.__setattr__(k,Patterns(v[0]))
+            else:
+                self.__setattr__(k,v)
+    
+    def __iter__(self):
+        return iter([getattr(self,k) for k in self.__dict__.keys()])
+    
 
 class Packs:
     ''' Contains details about a given pack'''
-    def __init__(self, project_dict):
-         for k,v in project_dict.items():
+    def __init__(self, pack_dict):
+         for k,v in pack_dict.items():
             self.__setattr__(k,v)
 
 
-# TODO: Class for each ravelry object, favourite, queue, project. can modify above methods to create instances of each class
+#FIXME: this class is currently unused
+
+class Pattern:
+    ''' Contains details about a given pattern'''
+    def __init__(self, pattern_dict):
+         for k,v in pattern_dict.items():
+            self.__setattr__(f"{k}_pattern",v)
+    
+
+
+
 
