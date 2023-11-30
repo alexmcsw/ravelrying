@@ -5,6 +5,11 @@ import json
 import requests
 import pandas as pd
 from config import *
+import time
+from itertools import count
+
+
+counter = count()
 
 class RavelryUtils:
     '''Initialize connection to Ravelry API'''
@@ -42,7 +47,7 @@ class RavelryUtils:
         url = 'https://api.ravelry.com/patterns/{}.json?'.format(id)  
         r1 = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.authUsername, self.authPassword))
         r1.close()
-        bad_keys = ['currency', 'currency_symbol', 'download_location', 'notes_html', 'notes', 'languages', 'packs', 'printings', 'photos']
+        bad_keys = ['currency', 'currency_symbol', 'download_location', 'notes_html', 'notes', 'languages', 'packs', 'printings', 'photos', 'private_notes_html','private_notes']
         #return Patterns(pd.DataFrame.from_records(json.loads(r1.text)['patterns']))
         return {k:v for k,v in json.loads(r1.text)['pattern'].items() if k not in bad_keys}
 
@@ -64,20 +69,24 @@ class RavelryUtils:
         
         return pd.DataFrame.from_records(json.loads(r1.text)['favorites']).favorited.apply(pd.Series)
     
-    def get_projects(self, rav_username = username, types = 'pattern', query = '', deep_search = '', page = 1, page_size = 5):
+    def get_projects(self, rav_username = username, types = 'pattern', query = '', deep_search = ''):
         '''This returns all the projects from a given person's rav_username'''
-        url = 'https://api.ravelry.com/people/{}/projects/list.json?types={}&query={}&deep_search={}&page={}&page_size={}'.format(rav_username, types, query, deep_search, page, page_size) 
+        url = 'https://api.ravelry.com/people/{}/projects/list.json?types={}&query={}&deep_search={}'.format(rav_username, types, query, deep_search) 
         r1 = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.authUsername, self.authPassword))
         r1.close()
         return Projects([self.get_project_full(id = id) for id in pd.DataFrame.from_records(json.loads(r1.text)['projects'])['id']])
     
     def get_project_full(self, rav_username = username, id = 0):
         '''This returns a full project given an ID from a given person's rav_username'''
+        global counter
         url = 'https://api.ravelry.com/projects/{}/{}.json?'.format(rav_username, id)
         r1 = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.authUsername, self.authPassword))
         r1.close()
-        project = json.loads(r1.text)['project']
+        bad_keys = ['currency', 'currency_symbol', 'download_location', 'notes_html', 'notes', 'languages', 'packs', 'printings', 'photos', 'private_notes_html','private_notes']
+        project = {k:v for k,v in json.loads(r1.text)['project'].items() if k not in bad_keys}
         project["pattern_full"] = self.get_pattern_full(project["pattern_id"])
+        print(next(counter), id)
+        time.sleep(1)
         return Project(project)
 
     def get_stash(self, rav_username = username, page = 1, page_size = 100):
@@ -99,7 +108,7 @@ class Project:
     ''' Contains details about a given project'''
     def __init__(self, project_dict):
         for k,v in project_dict.items():
-            if k == "packs":
+            if k == "packs" and len(v)>0:
                 self.__setattr__(k,Packs(v[0]))
             # elif k == "pattern_full":
             #     self.__setattr__(k,Patterns(v[0]))
